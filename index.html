@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小番茄图片批量混淆</title>
+<style>
+:root {
+    --deep: #180161;
+    --mid: #4f1787;
+    --pink: #eb3678;
+    --orange: #fb773c;
+    --line: #eadff2;
+    --muted: #6f6380;
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--deep);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #fff;
+}
+a {
+    color: var(--mid);
+}
+.page {
+    text-align: center;
+    padding: 24px 16px 40px;
+}
+h1 {
+    margin: 0 0 14px;
+    font-size: 2rem;
+    line-height: 1.25;
+    font-weight: 700;
+}
+.desc,
+.credit {
+    display: block;
+    max-width: 560px;
+    line-height: 1.65;
+    margin-left: auto;
+    margin-right: auto;
+}
+.desc {
+    color: #2d2438;
+}
+.credit {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+.spacer {
+    height: 16px;
+}
+.actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.normal_button {
+    min-width: 5.5rem;
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 1rem;
+    padding: 0 0.65rem;
+    border: 0;
+    border-radius: 6px;
+    display: inline-block;
+    position: relative;
+    vertical-align: middle;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+}
+.normal_button:disabled,
+.normal_button[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.ipt_btn {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    background-color: #ccc;
+    cursor: pointer;
+}
+.ipt_btn:disabled {
+    cursor: not-allowed;
+}
+#choose {
+    background-color: var(--deep);
+}
+#enc {
+    background-color: var(--mid);
+}
+#dec {
+    background-color: var(--pink);
+}
+#download {
+    background-color: var(--orange);
+}
+.summary {
+    min-height: 1.5rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+.gallery {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    text-align: left;
+}
+.empty {
+    grid-column: 1 / -1;
+    width: min(560px, 100%);
+    margin: 0 auto;
+    padding: 28px 18px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    color: var(--muted);
+    text-align: center;
+}
+.card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+}
+.card_head {
+    min-height: 48px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+}
+.name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--deep);
+    font-size: 0.92rem;
+}
+.state {
+    flex: 0 0 auto;
+    color: var(--pink);
+    font-size: 0.85rem;
+}
+.thumbs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+}
+figure {
+    margin: 0;
+    background: #fff;
+}
+.thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #faf7fc;
+}
+.thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+.placeholder {
+    padding: 12px;
+    color: var(--muted);
+    font-size: 0.86rem;
+    text-align: center;
+}
+figcaption {
+    height: 1.7rem;
+    line-height: 1.7rem;
+    padding: 0 8px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+@media (max-width: 520px) {
+    .page {
+        padding: 20px 12px 32px;
+    }
+    h1 {
+        font-size: 1.65rem;
+    }
+    .normal_button {
+        min-width: calc(50% - 4px);
+        margin: 0;
+    }
+}
+</style>
+</head>
+<body>
+<main class="page">
+    <h1>小番茄图片批量混淆</h1>
+    <div class="desc">基于空间填充曲线的新一代图片混淆。混淆算法保持像素的空间相关性，混淆图被压缩仍能保持色彩。仅供技术交流使用。此程序生成的图片格式为 jpeg，质量 0.95。</div>
+    <div class="credit">原网站：<a href="https://xfqtphx.netlify.app/" target="_blank" rel="noreferrer">小番茄图片混淆</a>；批量升级：MetaMiku · <a href="https://github.com/MetaMikuAI/xfqtphx-batch" target="_blank" rel="noreferrer">xfqtphx-batch</a></div>
+    <div class="spacer"></div>
+    <div class="actions">
+        <span id="choose" class="normal_button">选择图片<input type="file" accept="image/*" id="ipt" class="ipt_btn" multiple></span>
+        <button id="enc" class="normal_button" disabled>批量混淆</button>
+        <button id="dec" class="normal_button" disabled>批量解混淆</button>
+        <button id="download" class="normal_button" disabled>批量下载</button>
+    </div>
+    <div class="spacer"></div>
+    <div id="summary" class="summary" aria-live="polite"></div>
+    <div class="spacer"></div>
+    <section id="gallery" class="gallery">
+        <div class="empty">选择多张图片后会在这里展示。</div>
+    </section>
+</main>
+<script>
+const JPEG_QUALITY = 0.95;
+const state = {
+    items: [],
+    busy: false,
+    mode: ""
+};
+
+const ipt = document.getElementById("ipt");
+const btnEnc = document.getElementById("enc");
+const btnDec = document.getElementById("dec");
+const btnDownload = document.getElementById("download");
+const chooseButton = document.getElementById("choose");
+const gallery = document.getElementById("gallery");
+const summary = document.getElementById("summary");
+
+function gilbert2d(width, height) {
+    const coordinates = [];
+
+    if (width >= height) {
+        generate2d(0, 0, width, 0, 0, height, coordinates);
+    } else {
+        generate2d(0, 0, 0, height, width, 0, coordinates);
+    }
+
+    return coordinates;
+}
+
+function generate2d(x, y, ax, ay, bx, by, coordinates) {
+    const w = Math.abs(ax + ay);
+    const h = Math.abs(bx + by);
+
+    const dax = Math.sign(ax);
+    const day = Math.sign(ay);
+    const dbx = Math.sign(bx);
+    const dby = Math.sign(by);
+
+    if (h === 1) {
+        for (let i = 0; i < w; i++) {
+            coordinates.push([x, y]);
+            x += dax;
+            y += day;
+        }
+        return;
+    }
+
+    if (w === 1) {
+        for (let i = 0; i < h; i++) {
+            coordinates.push([x, y]);
+            x += dbx;
+            y += dby;
+        }
+        return;
+    }
+
+    let ax2 = Math.floor(ax / 2);
+    let ay2 = Math.floor(ay / 2);
+    let bx2 = Math.floor(bx / 2);
+    let by2 = Math.floor(by / 2);
+
+    const w2 = Math.abs(ax2 + ay2);
+    const h2 = Math.abs(bx2 + by2);
+
+    if (2 * w > 3 * h) {
+        if ((w2 % 2) && (w > 2)) {
+            ax2 += dax;
+            ay2 += day;
+        }
+
+        generate2d(x, y, ax2, ay2, bx, by, coordinates);
+        generate2d(x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by, coordinates);
+    } else {
+        if ((h2 % 2) && (h > 2)) {
+            bx2 += dbx;
+            by2 += dby;
+        }
+
+        generate2d(x, y, bx2, by2, ax2, ay2, coordinates);
+        generate2d(x + bx2, y + by2, ax, ay, bx - bx2, by - by2, coordinates);
+        generate2d(x + (ax - dax) + (bx2 - dbx), y + (ay - day) + (by2 - dby),
+            -bx2, -by2, -(ax - ax2), -(ay - ay2), coordinates);
+    }
+}
+
+function escapeHtml(value) {
+    return value.replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+    }[char]));
+}
+
+function setBusy(value) {
+    state.busy = value;
+    ipt.disabled = value;
+    chooseButton.setAttribute("aria-disabled", value ? "true" : "false");
+    btnEnc.disabled = value || state.items.length === 0;
+    btnDec.disabled = value || state.items.length === 0;
+    btnDownload.disabled = value || !state.items.some(item => item.resultBlob);
+}
+
+function cleanupItems() {
+    for (const item of state.items) {
+        URL.revokeObjectURL(item.originalUrl);
+        if (item.resultUrl) {
+            URL.revokeObjectURL(item.resultUrl);
+        }
+    }
+}
+
+function updateSummary(text) {
+    if (text) {
+        summary.textContent = text;
+        return;
+    }
+
+    const total = state.items.length;
+    const done = state.items.filter(item => item.resultBlob).length;
+    if (!total) {
+        summary.textContent = "";
+    } else if (done) {
+        summary.textContent = `已选择 ${total} 张，已生成 ${done} 张结果。`;
+    } else {
+        summary.textContent = `已选择 ${total} 张。`;
+    }
+}
+
+function render() {
+    if (!state.items.length) {
+        gallery.innerHTML = '<div class="empty">选择多张图片后会在这里展示。</div>';
+        updateSummary();
+        setBusy(state.busy);
+        return;
+    }
+
+    gallery.innerHTML = state.items.map(item => `
+        <article class="card" data-id="${item.id}">
+            <div class="card_head">
+                <div class="name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</div>
+                <div class="state">${escapeHtml(item.status)}</div>
+            </div>
+            <div class="thumbs">
+                <figure>
+                    <div class="thumb"><img src="${item.originalUrl}" alt=""></div>
+                    <figcaption>原图</figcaption>
+                </figure>
+                <figure>
+                    <div class="thumb">${item.resultUrl ? `<img src="${item.resultUrl}" alt="">` : '<div class="placeholder">等待批量处理</div>'}</div>
+                    <figcaption>${item.resultLabel}</figcaption>
+                </figure>
+            </div>
+        </article>
+    `).join("");
+    updateSummary();
+    setBusy(state.busy);
+}
+
+function updateCard(item) {
+    const card = gallery.querySelector(`[data-id="${item.id}"]`);
+    if (!card) {
+        render();
+        return;
+    }
+
+    const stateNode = card.querySelector(".state");
+    const resultThumb = card.querySelector("figure:nth-child(2) .thumb");
+    const resultCaption = card.querySelector("figure:nth-child(2) figcaption");
+    stateNode.textContent = item.status;
+    resultCaption.textContent = item.resultLabel;
+    resultThumb.innerHTML = item.resultUrl ? `<img src="${item.resultUrl}" alt="">` : '<div class="placeholder">等待批量处理</div>';
+    updateSummary();
+    setBusy(state.busy);
+}
+
+function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("图片读取失败"));
+        img.src = url;
+    });
+}
+
+function transformImage(img, mode) {
+    const cvs = document.createElement("canvas");
+    const width = cvs.width = img.naturalWidth || img.width;
+    const height = cvs.height = img.naturalHeight || img.height;
+    const ctx = cvs.getContext("2d");
+
+    ctx.drawImage(img, 0, 0);
+    const imgdata = ctx.getImageData(0, 0, width, height);
+    const imgdata2 = new ImageData(width, height);
+    const curve = gilbert2d(width, height);
+    const offset = Math.round((Math.sqrt(5) - 1) / 2 * width * height);
+    const pixels = width * height;
+
+    for (let i = 0; i < pixels; i++) {
+        const oldPos = curve[i];
+        const newPos = curve[(i + offset) % pixels];
+        const oldPoint = 4 * (oldPos[0] + oldPos[1] * width);
+        const newPoint = 4 * (newPos[0] + newPos[1] * width);
+
+        if (mode === "encrypt") {
+            imgdata2.data.set(imgdata.data.subarray(oldPoint, oldPoint + 4), newPoint);
+        } else {
+            imgdata2.data.set(imgdata.data.subarray(newPoint, newPoint + 4), oldPoint);
+        }
+    }
+
+    ctx.putImageData(imgdata2, 0, 0);
+    return new Promise((resolve, reject) => {
+        cvs.toBlob(blob => blob ? resolve(blob) : reject(new Error("图片导出失败")), "image/jpeg", JPEG_QUALITY);
+    });
+}
+
+function outputName(fileName, mode) {
+    const cleanName = fileName.replace(/[\\/:*?"<>|]+/g, "_");
+    const dot = cleanName.lastIndexOf(".");
+    const base = dot > 0 ? cleanName.slice(0, dot) : cleanName;
+    return `${base}${mode === "encrypt" ? "-xfqtphx" : "-xfqtphx-decoded"}.jpg`;
+}
+
+function nextFrame() {
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+async function runBatch(mode) {
+    if (!state.items.length || state.busy) {
+        return;
+    }
+
+    state.mode = mode;
+    setBusy(true);
+    updateSummary(`${mode === "encrypt" ? "混淆" : "解混淆"}处理中...`);
+
+    for (let i = 0; i < state.items.length; i++) {
+        const item = state.items[i];
+        item.status = `${i + 1}/${state.items.length}`;
+        item.resultLabel = mode === "encrypt" ? "混淆图" : "解混淆图";
+        updateCard(item);
+        await nextFrame();
+
+        try {
+            const img = await loadImage(item.originalUrl);
+            const blob = await transformImage(img, mode);
+
+            if (item.resultUrl) {
+                URL.revokeObjectURL(item.resultUrl);
+            }
+            item.resultBlob = blob;
+            item.resultUrl = URL.createObjectURL(blob);
+            item.resultName = outputName(item.file.name, mode);
+            item.status = "完成";
+        } catch (error) {
+            item.resultBlob = null;
+            if (item.resultUrl) {
+                URL.revokeObjectURL(item.resultUrl);
+                item.resultUrl = "";
+            }
+            item.status = "失败";
+            item.resultLabel = "结果";
+        }
+
+        updateCard(item);
+        await nextFrame();
+    }
+
+    setBusy(false);
+    updateSummary();
+}
+
+ipt.onchange = () => {
+    const files = Array.from(ipt.files || []).filter(file => file.type.startsWith("image/"));
+    cleanupItems();
+    state.items = files.map((file, index) => ({
+        id: `${Date.now()}-${index}`,
+        file,
+        originalUrl: URL.createObjectURL(file),
+        resultUrl: "",
+        resultBlob: null,
+        resultName: "",
+        resultLabel: "结果",
+        status: "待处理"
+    }));
+    state.mode = "";
+    render();
+};
+
+btnEnc.onclick = () => runBatch("encrypt");
+btnDec.onclick = () => runBatch("decrypt");
+btnDownload.onclick = async () => {
+    if (state.busy) {
+        return;
+    }
+
+    const entries = state.items
+        .filter(item => item.resultBlob)
+        .map(item => ({ name: item.resultName, blob: item.resultBlob }));
+    if (!entries.length) {
+        return;
+    }
+
+    try {
+        setBusy(true);
+        updateSummary("正在打包...");
+        const blob = await createZip(entries);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `xfqtphx-batch-${state.mode || "result"}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } finally {
+        setBusy(false);
+        updateSummary();
+    }
+};
+
+const crcTable = new Uint32Array(256);
+for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    crcTable[i] = c >>> 0;
+}
+
+function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+        crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function write16(view, offset, value) {
+    view.setUint16(offset, value, true);
+}
+
+function write32(view, offset, value) {
+    view.setUint32(offset, value >>> 0, true);
+}
+
+function zipDateParts(date) {
+    const year = Math.max(date.getFullYear(), 1980);
+    const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+    const day = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+    return { time, day };
+}
+
+function uniqueZipName(name, used) {
+    const dot = name.lastIndexOf(".");
+    const base = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : "";
+    let candidate = name;
+    let count = 2;
+    while (used.has(candidate)) {
+        candidate = `${base}-${count}${ext}`;
+        count++;
+    }
+    used.add(candidate);
+    return candidate;
+}
+
+function concatBytes(parts, totalSize) {
+    const out = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const part of parts) {
+        out.set(part, offset);
+        offset += part.length;
+    }
+    return out;
+}
+
+async function createZip(entries) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    const usedNames = new Set();
+    const now = zipDateParts(new Date());
+    let offset = 0;
+    let totalSize = 0;
+    let centralSize = 0;
+
+    for (const entry of entries) {
+        const data = new Uint8Array(await entry.blob.arrayBuffer());
+        const name = encoder.encode(uniqueZipName(entry.name, usedNames));
+        const crc = crc32(data);
+
+        const local = new Uint8Array(30);
+        const localView = new DataView(local.buffer);
+        write32(localView, 0, 0x04034b50);
+        write16(localView, 4, 20);
+        write16(localView, 6, 0x0800);
+        write16(localView, 8, 0);
+        write16(localView, 10, now.time);
+        write16(localView, 12, now.day);
+        write32(localView, 14, crc);
+        write32(localView, 18, data.length);
+        write32(localView, 22, data.length);
+        write16(localView, 26, name.length);
+        write16(localView, 28, 0);
+
+        localParts.push(local, name, data);
+
+        const central = new Uint8Array(46);
+        const centralView = new DataView(central.buffer);
+        write32(centralView, 0, 0x02014b50);
+        write16(centralView, 4, 20);
+        write16(centralView, 6, 20);
+        write16(centralView, 8, 0x0800);
+        write16(centralView, 10, 0);
+        write16(centralView, 12, now.time);
+        write16(centralView, 14, now.day);
+        write32(centralView, 16, crc);
+        write32(centralView, 20, data.length);
+        write32(centralView, 24, data.length);
+        write16(centralView, 28, name.length);
+        write16(centralView, 30, 0);
+        write16(centralView, 32, 0);
+        write16(centralView, 34, 0);
+        write16(centralView, 36, 0);
+        write32(centralView, 38, 0);
+        write32(centralView, 42, offset);
+
+        centralParts.push(central, name);
+
+        offset += local.length + name.length + data.length;
+        totalSize += local.length + name.length + data.length;
+        centralSize += central.length + name.length;
+    }
+
+    const end = new Uint8Array(22);
+    const endView = new DataView(end.buffer);
+    write32(endView, 0, 0x06054b50);
+    write16(endView, 4, 0);
+    write16(endView, 6, 0);
+    write16(endView, 8, entries.length);
+    write16(endView, 10, entries.length);
+    write32(endView, 12, centralSize);
+    write32(endView, 16, offset);
+    write16(endView, 20, 0);
+
+    const bytes = concatBytes([...localParts, ...centralParts, end], totalSize + centralSize + end.length);
+    return new Blob([bytes], { type: "application/zip" });
+}
+</script>
+</body>
+</html>
