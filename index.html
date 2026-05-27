@@ -108,6 +108,9 @@ h1 {
 #download {
     background-color: var(--orange);
 }
+#clear {
+    background-color: #7f6c8f;
+}
 .summary {
     min-height: 1.5rem;
     color: var(--muted);
@@ -143,7 +146,7 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     border-bottom: 1px solid var(--line);
 }
 .name {
@@ -158,6 +161,23 @@ h1 {
     flex: 0 0 auto;
     color: var(--pink);
     font-size: 0.85rem;
+}
+.delete_btn {
+    flex: 0 0 auto;
+    width: 1.65rem;
+    height: 1.65rem;
+    border: 0;
+    border-radius: 6px;
+    color: #fff;
+    background: var(--orange);
+    cursor: pointer;
+    font-size: 1.15rem;
+    line-height: 1.65rem;
+    padding: 0;
+}
+.delete_btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 .thumbs {
     display: grid;
@@ -221,10 +241,11 @@ figcaption {
     <div class="credit">原网站：<a href="https://xfqtphx.netlify.app/" target="_blank" rel="noreferrer">小番茄图片混淆</a>；批量升级：MetaMiku · <a href="https://github.com/MetaMikuAI/xfqtphx-batch" target="_blank" rel="noreferrer">xfqtphx-batch</a></div>
     <div class="spacer"></div>
     <div class="actions">
-        <span id="choose" class="normal_button">选择图片<input type="file" accept="image/*" id="ipt" class="ipt_btn" multiple></span>
+        <span id="choose" class="normal_button">选择图片<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/*" id="ipt" class="ipt_btn" multiple></span>
         <button id="enc" class="normal_button" disabled>批量混淆</button>
         <button id="dec" class="normal_button" disabled>批量解混淆</button>
         <button id="download" class="normal_button" disabled>批量下载</button>
+        <button id="clear" class="normal_button" disabled>清空</button>
     </div>
     <div class="spacer"></div>
     <div id="summary" class="summary" aria-live="polite"></div>
@@ -245,6 +266,7 @@ const ipt = document.getElementById("ipt");
 const btnEnc = document.getElementById("enc");
 const btnDec = document.getElementById("dec");
 const btnDownload = document.getElementById("download");
+const btnClear = document.getElementById("clear");
 const chooseButton = document.getElementById("choose");
 const gallery = document.getElementById("gallery");
 const summary = document.getElementById("summary");
@@ -334,6 +356,10 @@ function setBusy(value) {
     btnEnc.disabled = value || state.items.length === 0;
     btnDec.disabled = value || state.items.length === 0;
     btnDownload.disabled = value || !state.items.some(item => item.resultBlob);
+    btnClear.disabled = value || state.items.length === 0;
+    for (const button of gallery.querySelectorAll(".delete_btn")) {
+        button.disabled = value;
+    }
 }
 
 function cleanupItems() {
@@ -375,6 +401,7 @@ function render() {
             <div class="card_head">
                 <div class="name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</div>
                 <div class="state">${escapeHtml(item.status)}</div>
+                <button class="delete_btn" type="button" data-delete="${item.id}" title="删除 ${escapeHtml(item.file.name)}" aria-label="删除 ${escapeHtml(item.file.name)}" ${state.busy ? "disabled" : ""}>×</button>
             </div>
             <div class="thumbs">
                 <figure>
@@ -407,6 +434,33 @@ function updateCard(item) {
     resultThumb.innerHTML = item.resultUrl ? `<img src="${item.resultUrl}" alt="">` : '<div class="placeholder">等待批量处理</div>';
     updateSummary();
     setBusy(state.busy);
+}
+
+function makeItem(file, index) {
+    return {
+        id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+        file,
+        originalUrl: URL.createObjectURL(file),
+        resultUrl: "",
+        resultBlob: null,
+        resultName: "",
+        resultLabel: "结果",
+        status: "待处理"
+    };
+}
+
+function removeItem(id) {
+    const index = state.items.findIndex(item => item.id === id);
+    if (index < 0 || state.busy) {
+        return;
+    }
+
+    const [item] = state.items.splice(index, 1);
+    URL.revokeObjectURL(item.originalUrl);
+    if (item.resultUrl) {
+        URL.revokeObjectURL(item.resultUrl);
+    }
+    render();
 }
 
 function loadImage(url) {
@@ -508,86 +562,68 @@ async function runBatch(mode) {
 
 ipt.onchange = () => {
     const files = Array.from(ipt.files || []).filter(file => file.type.startsWith("image/"));
-    cleanupItems();
-    state.items = files.map((file, index) => ({
-        id: `${Date.now()}-${index}`,
-        file,
-        originalUrl: URL.createObjectURL(file),
-        resultUrl: "",
-        resultBlob: null,
-        resultName: "",
-        resultLabel: "结果",
-        status: "待处理"
-    }));
+    const start = state.items.length;
+    state.items.push(...files.map((file, index) => makeItem(file, start + index)));
+    ipt.value = "";
     state.mode = "";
     render();
 };
 
+gallery.onclick = event => {
+    const button = event.target.closest("[data-delete]");
+    if (button) {
+        removeItem(button.dataset.delete);
+    }
+};
+
 btnEnc.onclick = () => runBatch("encrypt");
 btnDec.onclick = () => runBatch("decrypt");
+btnClear.onclick = () => {
+    if (state.busy) {
+        return;
+    }
+
+    cleanupItems();
+    state.items = [];
+    state.mode = "";
+    ipt.value = "";
+    render();
+};
 btnDownload.onclick = async () => {
     if (state.busy) {
         return;
     }
 
-    const entries = state.items
-        .filter(item => item.resultBlob)
-        .map(item => ({ name: item.resultName, blob: item.resultBlob }));
+    const entries = resultEntries();
     if (!entries.length) {
         return;
     }
 
     try {
         setBusy(true);
-        updateSummary("正在打包...");
-        const blob = await createZip(entries);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `xfqtphx-batch-${state.mode || "result"}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        await downloadResultFiles(entries);
+    } catch (error) {
+        if (error.name !== "AbortError") {
+            updateSummary("下载失败，请换浏览器或减少单次图片数量后重试。");
+            await new Promise(resolve => setTimeout(resolve, 1600));
+        }
     } finally {
         setBusy(false);
         updateSummary();
     }
 };
 
-const crcTable = new Uint32Array(256);
-for (let i = 0; i < 256; i++) {
-    let c = i;
-    for (let k = 0; k < 8; k++) {
-        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    }
-    crcTable[i] = c >>> 0;
+function resultEntries() {
+    const used = new Set();
+    return state.items
+        .filter(item => item.resultBlob)
+        .map(item => ({
+            name: uniqueName(item.resultName || outputName(item.file.name, state.mode || "encrypt"), used),
+            blob: item.resultBlob
+        }));
 }
 
-function crc32(bytes) {
-    let crc = 0xffffffff;
-    for (const byte of bytes) {
-        crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-    }
-    return (crc ^ 0xffffffff) >>> 0;
-}
-
-function write16(view, offset, value) {
-    view.setUint16(offset, value, true);
-}
-
-function write32(view, offset, value) {
-    view.setUint32(offset, value >>> 0, true);
-}
-
-function zipDateParts(date) {
-    const year = Math.max(date.getFullYear(), 1980);
-    const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
-    const day = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
-    return { time, day };
-}
-
-function uniqueZipName(name, used) {
+function uniqueName(name, used) {
     const dot = name.lastIndexOf(".");
     const base = dot > 0 ? name.slice(0, dot) : name;
     const ext = dot > 0 ? name.slice(dot) : "";
@@ -601,87 +637,46 @@ function uniqueZipName(name, used) {
     return candidate;
 }
 
-function concatBytes(parts, totalSize) {
-    const out = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const part of parts) {
-        out.set(part, offset);
-        offset += part.length;
-    }
-    return out;
+function canShareFiles(files) {
+    return Boolean(
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files })
+    );
 }
 
-async function createZip(entries) {
-    const encoder = new TextEncoder();
-    const localParts = [];
-    const centralParts = [];
-    const usedNames = new Set();
-    const now = zipDateParts(new Date());
-    let offset = 0;
-    let totalSize = 0;
-    let centralSize = 0;
+async function downloadResultFiles(entries) {
+    const files = entries.map(entry => new File([entry.blob], entry.name, {
+        type: "image/jpeg",
+        lastModified: Date.now()
+    }));
 
-    for (const entry of entries) {
-        const data = new Uint8Array(await entry.blob.arrayBuffer());
-        const name = encoder.encode(uniqueZipName(entry.name, usedNames));
-        const crc = crc32(data);
-
-        const local = new Uint8Array(30);
-        const localView = new DataView(local.buffer);
-        write32(localView, 0, 0x04034b50);
-        write16(localView, 4, 20);
-        write16(localView, 6, 0x0800);
-        write16(localView, 8, 0);
-        write16(localView, 10, now.time);
-        write16(localView, 12, now.day);
-        write32(localView, 14, crc);
-        write32(localView, 18, data.length);
-        write32(localView, 22, data.length);
-        write16(localView, 26, name.length);
-        write16(localView, 28, 0);
-
-        localParts.push(local, name, data);
-
-        const central = new Uint8Array(46);
-        const centralView = new DataView(central.buffer);
-        write32(centralView, 0, 0x02014b50);
-        write16(centralView, 4, 20);
-        write16(centralView, 6, 20);
-        write16(centralView, 8, 0x0800);
-        write16(centralView, 10, 0);
-        write16(centralView, 12, now.time);
-        write16(centralView, 14, now.day);
-        write32(centralView, 16, crc);
-        write32(centralView, 20, data.length);
-        write32(centralView, 24, data.length);
-        write16(centralView, 28, name.length);
-        write16(centralView, 30, 0);
-        write16(centralView, 32, 0);
-        write16(centralView, 34, 0);
-        write16(centralView, 36, 0);
-        write32(centralView, 38, 0);
-        write32(centralView, 42, offset);
-
-        centralParts.push(central, name);
-
-        offset += local.length + name.length + data.length;
-        totalSize += local.length + name.length + data.length;
-        centralSize += central.length + name.length;
+    if (canShareFiles(files)) {
+        updateSummary("正在打开系统保存/分享...");
+        await navigator.share({
+            files,
+            title: "小番茄图片批量结果"
+        });
+        return;
     }
 
-    const end = new Uint8Array(22);
-    const endView = new DataView(end.buffer);
-    write32(endView, 0, 0x06054b50);
-    write16(endView, 4, 0);
-    write16(endView, 6, 0);
-    write16(endView, 8, entries.length);
-    write16(endView, 10, entries.length);
-    write32(endView, 12, centralSize);
-    write32(endView, 16, offset);
-    write16(endView, 20, 0);
-
-    const bytes = concatBytes([...localParts, ...centralParts, end], totalSize + centralSize + end.length);
-    return new Blob([bytes], { type: "application/zip" });
+    updateSummary(`正在下载 ${entries.length} 张图片...`);
+    const urls = [];
+    for (const entry of entries) {
+        const url = URL.createObjectURL(entry.blob);
+        const a = document.createElement("a");
+        urls.push(url);
+        a.href = url;
+        a.download = entry.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+    setTimeout(() => {
+        for (const url of urls) {
+            URL.revokeObjectURL(url);
+        }
+    }, 5000);
 }
 </script>
 </body>
